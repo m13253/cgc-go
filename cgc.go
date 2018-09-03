@@ -84,7 +84,7 @@ func (e Executor) RunOnce(ctx context.Context) error {
 	return nil
 }
 
-// Submit submits a request to the executor
+// Submit submits a request to the executor and wait for the result
 //
 // This function should be called from the caller goroutine
 func (e Executor) Submit(ctx context.Context, f Func) (interface{}, error) {
@@ -106,7 +106,7 @@ func (e Executor) Submit(ctx context.Context, f Func) (interface{}, error) {
 	}
 }
 
-// SubmitNoWait submits a request but does not wait for the result
+// SubmitNoWait submits a request, wait for the request to be received, but does not wait for the result
 //
 // This function should be called from the caller goroutine
 func (e Executor) SubmitNoWait(ctx context.Context, f Func) error {
