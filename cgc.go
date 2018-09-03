@@ -25,6 +25,7 @@ package cgc
 
 import (
 	"context"
+	"io"
 
 	"github.com/LK4D4/joincontext"
 )
@@ -65,7 +66,7 @@ func NewBuffered(bufferLength uint) Executor {
 func (e Executor) RunLoop(ctx context.Context) {
 	for {
 		err := e.RunOnce(ctx)
-		if err == context.Canceled {
+		if err == io.EOF || err == context.Canceled {
 			break
 		}
 	}
@@ -76,7 +77,10 @@ func (e Executor) RunLoop(ctx context.Context) {
 // This function should be called from the callee goroutine
 func (e Executor) RunOnce(ctx context.Context) error {
 	select {
-	case r := <-e:
+	case r, ok := <-e:
+		if !ok {
+			return io.EOF
+		}
 		return RunOneRequest(ctx, r)
 	case <-ctx.Done():
 		return context.Canceled
@@ -98,7 +102,10 @@ func (e Executor) Submit(ctx context.Context, f Func) (interface{}, error) {
 		return nil, context.Canceled
 	}
 	select {
-	case r := <-resultChan:
+	case r, ok := <-resultChan:
+		if !ok {
+			return nil, context.Canceled
+		}
 		return r.val, r.err
 	case <-ctx.Done():
 		return nil, context.Canceled
@@ -128,7 +135,7 @@ func RunOneRequest(ctx context.Context, r *Request) error {
 	joinedCtx, _ := joincontext.Join(ctx, r.Context)
 	val, err := r.Func(joinedCtx)
 	if r.result == nil {
-		return
+		return nil
 	}
 	defer close(r.result)
 	select {
