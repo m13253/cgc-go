@@ -119,6 +119,7 @@ func (e Executor) SubmitNoWait(ctx context.Context, f Func) error {
 	case <-ctx.Done():
 		return context.Canceled
 	}
+	return nil
 }
 
 // RunOneRequest executes on request that is already extracted from an executor
