@@ -63,11 +63,14 @@ func NewBuffered(bufferLength uint) Executor {
 // RunLoop keeps executing requests from the executor until ctx is canceled
 //
 // This function should be called from the callee goroutine
-func (e Executor) RunLoop(ctx context.Context) {
+func (e Executor) RunLoop(ctx context.Context) error {
 	for {
 		err := e.RunOnce(ctx)
-		if err == io.EOF || err == context.Canceled {
-			break
+		if err == io.EOF {
+			return nil
+		}
+		if err == context.Canceled {
+			return err
 		}
 	}
 }
