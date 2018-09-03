@@ -106,12 +106,30 @@ func (e Executor) Submit(ctx context.Context, f Func) (interface{}, error) {
 	}
 }
 
+// SubmitNoWait submits a request but does not wait for the result
+//
+// This function should be called from the caller goroutine
+func (e Executor) SubmitNoWait(ctx context.Context, f Func) error {
+	select {
+	case e <- &Request{
+		Func:    f,
+		Context: ctx,
+		result:  nil,
+	}:
+	case <-ctx.Done():
+		return context.Canceled
+	}
+}
+
 // RunOneRequest executes on request that is already extracted from an executor
 //
 // Either ctx or r.Context may cancel the inner function
 func RunOneRequest(ctx context.Context, r *Request) {
 	joinedCtx, _ := joincontext.Join(ctx, r.Context)
 	val, err := r.Func(joinedCtx)
+	if r.result == nil {
+		return
+	}
 	r.result <- &result{
 		val: val,
 		err: err,
