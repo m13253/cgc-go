@@ -77,11 +77,10 @@ func (e Executor) RunLoop(ctx context.Context) {
 func (e Executor) RunOnce(ctx context.Context) error {
 	select {
 	case r := <-e:
-		RunOneRequest(ctx, r)
+		return RunOneRequest(ctx, r)
 	case <-ctx.Done():
 		return context.Canceled
 	}
-	return nil
 }
 
 // Submit submits a request to the executor and wait for the result
@@ -125,15 +124,20 @@ func (e Executor) SubmitNoWait(ctx context.Context, f Func) error {
 // RunOneRequest executes on request that is already extracted from an executor
 //
 // Either ctx or r.Context may cancel the inner function
-func RunOneRequest(ctx context.Context, r *Request) {
+func RunOneRequest(ctx context.Context, r *Request) error {
 	joinedCtx, _ := joincontext.Join(ctx, r.Context)
 	val, err := r.Func(joinedCtx)
 	if r.result == nil {
 		return
 	}
-	r.result <- &result{
+	defer close(r.result)
+	select {
+	case r.result <- &result{
 		val: val,
 		err: err,
+	}:
+	case <-ctx.Done():
+		return context.Canceled
 	}
-	close(r.result)
+	return nil
 }
