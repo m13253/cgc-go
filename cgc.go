@@ -135,7 +135,8 @@ func (e Executor) SubmitNoWait(ctx context.Context, f Func) error {
 //
 // Either ctx or r.Context may cancel the inner function
 func RunOneRequest(ctx context.Context, r *Request) error {
-	joinedCtx, _ := joincontext.Join(ctx, r.Context)
+	joinedCtx, joinedCancel := joincontext.Join(ctx, r.Context)
+	defer joinedCancel()
 	val, err := r.Func(joinedCtx)
 	if r.result == nil {
 		return nil
