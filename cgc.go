@@ -43,7 +43,7 @@ type (
 	Request struct {
 		Func    Func
 		Context context.Context
-		result  chan *result
+		result  chan<- *result
 	}
 
 	// Executor is a cross-goroutine execution unit
