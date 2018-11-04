@@ -111,13 +111,14 @@ func (e Executor) RunLoop(ctx context.Context) error {
 //     cgc.RunOneRequest(ctx, req)
 func (e Executor) RunOnce(ctx context.Context) error {
 	select {
+	case <-ctx.Done():
+		return context.Canceled
 	case r, ok := <-e:
 		if !ok {
 			return io.EOF
 		}
-		return RunOneRequest(ctx, r)
-	case <-ctx.Done():
-		return context.Canceled
+		RunOneRequest(ctx, r)
+		return nil
 	}
 }
 
@@ -128,23 +129,19 @@ func (e Executor) RunOnce(ctx context.Context) error {
 func (e Executor) Submit(ctx context.Context, f Func) (interface{}, error) {
 	resultChan := make(chan *result, 1)
 	select {
+	case <-ctx.Done():
+		return nil, context.Canceled
 	case e <- &Request{
 		Func:    f,
 		Context: ctx,
 		result:  resultChan,
 	}:
-	case <-ctx.Done():
-		return nil, context.Canceled
 	}
-	select {
-	case r, ok := <-resultChan:
-		if !ok {
-			return nil, context.Canceled
-		}
-		return r.val, r.err
-	case <-ctx.Done():
-		return nil, context.Canceled
+	res, ok := <-resultChan
+	if !ok {
+		panic("cgc: result channel closed without any results")
 	}
+	return res.val, res.err
 }
 
 // SubmitNoWait submits a request, wait for the request to be received, but does
@@ -154,13 +151,13 @@ func (e Executor) Submit(ctx context.Context, f Func) (interface{}, error) {
 // context at the callee goroutine may cancel the request.
 func (e Executor) SubmitNoWait(ctx context.Context, f Func) error {
 	select {
+	case <-ctx.Done():
+		return context.Canceled
 	case e <- &Request{
 		Func:    f,
 		Context: ctx,
 		result:  nil,
 	}:
-	case <-ctx.Done():
-		return context.Canceled
 	}
 	return nil
 }
@@ -175,7 +172,7 @@ func (e Executor) SubmitNoWait(ctx context.Context, f Func) error {
 //
 // Instead of using RunOneRequest, you can also use
 //     executor.RunOnce(ctx)
-func RunOneRequest(ctx context.Context, r *Request) error {
+func RunOneRequest(ctx context.Context, r *Request) {
 	joinedCtx, joinedCancel := ctx, context.CancelFunc(nil)
 	if ctx != r.Context {
 		joinedCtx, joinedCancel = joincontext.Join(ctx, r.Context)
@@ -184,17 +181,11 @@ func RunOneRequest(ctx context.Context, r *Request) error {
 	if joinedCancel != nil {
 		joinedCancel()
 	}
-	if r.result == nil {
-		return nil
+	if r.result != nil {
+		r.result <- &result{
+			val: val,
+			err: err,
+		}
+		close(r.result)
 	}
-	defer close(r.result)
-	select {
-	case r.result <- &result{
-		val: val,
-		err: err,
-	}:
-	case <-ctx.Done():
-		return context.Canceled
-	}
-	return nil
 }
