@@ -1,3 +1,5 @@
+# cgc-go: Cross Goroutine Calls library
+
 [![](https://godoc.org/github.com/m13253/cgc-go?status.svg)](http://godoc.org/github.com/m13253/cgc-go)
 
 Package cgc is a package that allows you pass a function for another goroutine

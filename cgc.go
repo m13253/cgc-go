@@ -172,6 +172,9 @@ func (e Executor) SubmitNoWait(ctx context.Context, f Func) error {
 //
 // This function should be called from the callee goroutine, either ctx or
 // r.Context may cancel the inner function.
+//
+// Instead of using RunOneRequest, you can also use
+//     executor.RunOnce(ctx)
 func RunOneRequest(ctx context.Context, r *Request) error {
 	joinedCtx, joinedCancel := ctx, context.CancelFunc(nil)
 	if ctx != r.Context {
